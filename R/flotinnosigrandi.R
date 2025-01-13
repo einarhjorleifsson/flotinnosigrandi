@@ -8,7 +8,7 @@ library(lubridate)
 library(sf)
 library(omar)
 con <- connect_mar()
-source(here("R/make_trips.R"))
+source("/home/haf/einarhj/ShinyApps/flotinnosigrandi/R/make_trips.R")
 
 # vessels that have landed capelin since 2018, only run occationally
 if(FALSE) {
@@ -72,8 +72,8 @@ if(FALSE) {
   capelin |> write_rds(here("data/capelin_vessels.rds"))
 }
 
-harbours <- read_rds(here("data/harbours.rds"))
-capelin <- read_rds(here("data/capelin_vessels.rds"))
+harbours <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/harbours.rds")
+capelin <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/capelin_vessels.rds")
 
 mids <-
   capelin %>%
@@ -162,8 +162,8 @@ trail <-
   filter(time >= ymd_hms("2024-12-01 00:00:00"))
 
 
-trail |> write_rds(here("data/flotinnosigrandi.rds"))
-system("chmod a+rX data/flotinnosigrandi.rds")
+trail |> write_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/flotinnosigrandi.rds")
+#system("chmod a+rX data/flotinnosigrandi.rds")
 
 # create a list for selection
 tmp <-
@@ -173,9 +173,11 @@ tmp <-
   arrange(foreign, vessel) %>%
   distinct() %>%
   drop_na()
+i <- order(tmp$foreign, tmp$vessel)
+tmp <- tmp[i ,]
 vessels <- tmp$mid
 names(vessels) <- tmp$vessel
-vessels |> write_rds(here("data/vessels.rds"))
-system("chmod a+rX data/vessels.rds")
+vessels |> write_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/vessels.rds")
+#system("chmod a+rX data/vessels.rds")
 
 
