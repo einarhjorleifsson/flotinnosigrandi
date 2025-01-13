@@ -1,11 +1,12 @@
 library(tidyverse)
+library(here)
 library(sf)
 library(DT)
 library(shiny)
 library(shinydashboard)
 library(mapdeck)
 
-vessels <- read_rds("/net/hafri.hafro.is/export/home/hafri/einarhj/public_html/vessels.rds")
+vessels <- read_rds(here("data/vessels.rds"))
 
 ui <-
   dashboardPage(
@@ -41,7 +42,7 @@ server <- function(input, output, session) {
   trail.live <-
     reactiveFileReader(intervalMillis = 100,
                        session = session,
-                       filePath = "/net/hafri.hafro.is/export/home/hafri/einarhj/public_html/skipasjo.rds",
+                       filePath = here("data/flotinnosigrandi.rds"),
                        readFunc = read_rds)
 
 
