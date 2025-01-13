@@ -132,7 +132,8 @@ trip.fix <-
 
 trail <-
   trail %>%
-  left_join(trip.fix) |>
+  left_join(trip.fix,
+            by = join_by(trip, vid)) |>
   mutate(trip = trip.fix) |>
   select(-trip.fix) |>
   st_as_sf(coords = c("lon", "lat"),
@@ -147,7 +148,8 @@ max.time <-
   trail |>
   st_drop_geometry() |>
   group_by(vid, foreign) |>
-  summarise(time = max(time)) |>
+  summarise(time = max(time),
+            .groups = "drop") |>
   ungroup() |>
   arrange(time) |>
   filter(!foreign | time >= ymd("2024-11-01"))

@@ -102,10 +102,12 @@ server <- function(input, output, session) {
                                    filter(time == max.time) %>%
                                    mutate(lon = round(lon, 2),
                                           lat = round(lat, 2)) %>%
-                                   select(Skip = vessel, Tími = time,
+                                   select(Skip = vessel,
+                                          Nr = vid,
+                                          Tími = time,
                                           Hraði = speed, Stefna = heading, lon, lat) %>%
                                    mutate(pu = leafpop::popupTable(.,
-                                                                   zcol = c("Skip", "Tími", "Hraði", "Stefna", "lon", "lat"),
+                                                                   zcol = c("Skip", "Nr", "Tími", "Hraði", "Stefna", "lon", "lat"),
                                                                    feature.id = FALSE,
                                                                    row.numbers = FALSE)),
                                  tooltip = "pu",
