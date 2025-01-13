@@ -96,8 +96,8 @@ trail <-
   group_by(mid) %>%
   arrange(time) %>%
   mutate(max.time = max(time, na.rm = TRUE),
-         min.time = min(time, na.rm = TRUE),
-         max.time.in.harbour = max(time[in.harbour])) %>%
+         min.time = min(time, na.rm = TRUE)) |>
+  #mutate(max.time.in.harbour = max(time[in.harbour])) %>%
   ungroup() %>%
   mutate(days = as.integer(difftime(today(), lubridate::as_date(time), units = "days"))) %>%
   make_trips(harbours = harbours)
@@ -117,7 +117,7 @@ trail <-
   trail %>%
   left_join(capelin |>
               select(vid, vessel, mid, foreign),
-            multiple = "all")
+            by = join_by(mid))
 
 # # fix trip number (should be done upstream)
 trip.fix <-
