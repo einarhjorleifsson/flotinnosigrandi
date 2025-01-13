@@ -1,5 +1,3 @@
-#lubridate::now()
-#library(DBI, lib.loc = "/usr/local/lib/R/site/4.1/x86_64/library")
 lubridate::now()
 library(ROracle) #, lib.loc = "/usr/local/lib/R/site/4.1/x86_64/library")
 library(tidyverse)
@@ -10,7 +8,7 @@ library(omar)
 con <- connect_mar()
 source("/home/haf/einarhj/ShinyApps/flotinnosigrandi/R/make_trips.R")
 
-# vessels that have landed capelin since 2018, only run occationally
+# vessels that have landed capelin since 2018, only run occasionally
 if(FALSE) {
   vessels <-
     omar::vessels_vessels(con) |>
@@ -85,8 +83,7 @@ mids <-
 trail <-
   stk_trail(con) %>%
   filter(mid %in% mids,
-         time >= to_date("2025-01-01", "YYYY:MM:DD"),
-         time <= to_date("2028-12-24", "YYYY:MM:DD")) %>%
+         rectime >= to_date("2025-01-01", "YYYY:MM:DD")) |>
   collect(n = Inf) %>%
   distinct() %>%
   filter(between(lon, -35, 30),
@@ -162,10 +159,7 @@ trail <-
 trail <-
   trail |>
   filter(time >= ymd_hms("2024-12-01 00:00:00"))
-
-
 trail |> write_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/flotinnosigrandi.rds")
-#system("chmod a+rX data/flotinnosigrandi.rds")
 
 # create a list for selection
 tmp <-
@@ -175,11 +169,9 @@ tmp <-
   arrange(foreign, vessel) %>%
   distinct() %>%
   drop_na()
+# get the order right, arrange does not respect the Icelandic alphabet
 i <- order(tmp$foreign, tmp$vessel)
 tmp <- tmp[i ,]
 vessels <- tmp$mid
 names(vessels) <- tmp$vessel
 vessels |> write_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/vessels.rds")
-#system("chmod a+rX data/vessels.rds")
-
-
