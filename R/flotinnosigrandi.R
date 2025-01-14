@@ -8,7 +8,7 @@ library(omar)
 con <- connect_mar()
 source("/home/haf/einarhj/ShinyApps/flotinnosigrandi/R/make_trips.R")
 
-# vessels that have landed capelin since 2018, only run occasionally
+# Get vessel list - run occationally -------------------------------------------
 if(FALSE) {
   vessels <-
     omar::vessels_vessels(con) |>
@@ -70,8 +70,10 @@ if(FALSE) {
   capelin |> write_rds(here("data/capelin_vessels.rds"))
 }
 
+# Load data --------------------------------------------------------------------
 harbours <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/harbours.rds")
 capelin <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/capelin_vessels.rds")
+T1 <- (lubridate::today() - months(2)) |> as.character()
 
 mids <-
   capelin %>%
@@ -83,7 +85,7 @@ mids <-
 trail <-
   stk_trail(con) %>%
   filter(mid %in% mids,
-         rectime >= to_date("2025-01-01", "YYYY:MM:DD")) |>
+         rectime >= to_date(T1, "YYYY:MM:DD")) |>
   collect(n = Inf) %>%
   distinct() %>%
   filter(between(lon, -35, 30),
@@ -91,32 +93,33 @@ trail <-
   mutate(speed = ifelse(speed > 12, 12, speed),
          in.harbour = ifelse(!is.na(hid) | !is.na(io), TRUE, FALSE)) %>%
   group_by(mid) %>%
-  arrange(time) %>%
   mutate(max.time = max(time, na.rm = TRUE),
          min.time = min(time, na.rm = TRUE)) |>
-  #mutate(max.time.in.harbour = max(time[in.harbour])) %>%
   ungroup() %>%
-  mutate(days = as.integer(difftime(today(), lubridate::as_date(time), units = "days"))) %>%
-  make_trips(harbours = harbours)
+  mutate(days = as.integer(difftime(today(), lubridate::as_date(time), units = "days")))
 
+## Create trips ----------------------------------------------------------------
+trail <-
+  trail |>
+  make_trips(harbours = harbours)
+## Drop wackies ----------------------------------------------------------------
 trail <-
   trail %>%
   group_by(mid) %>%
   mutate(whacky = ramb::rb_whacky_speed(lon, lat, time)) %>%
   ungroup() %>%
   filter(!whacky)
-
+## Only three trips ------------------------------------------------------------
 trail <-
   trail %>%
-  filter(trip %in% c(0:3)) # & days <= 91)
-
+  filter(trip %in% c(0:3))
 trail <-
   trail %>%
   left_join(capelin |>
               select(vid, vessel, mid, foreign),
             by = join_by(mid))
 
-# # fix trip number (should be done upstream)
+## fix trip number (should be done upstream) -----------------------------------
 trip.fix <-
   trail |>
   filter(!is.na(vid)) |>
@@ -127,6 +130,7 @@ trip.fix <-
   select(vid, trip, trip.fix) |>
   distinct()
 
+## to spatial ------------------------------------------------------------------
 trail <-
   trail %>%
   left_join(trip.fix,
@@ -135,33 +139,26 @@ trail <-
   select(-trip.fix) |>
   st_as_sf(coords = c("lon", "lat"),
            crs = 4326,
-           remove = FALSE)
-
-trail <-
-  trail %>%
+           remove = FALSE) |>
   select(-c(hid, io, in.harbour, harbour, in.harbour))
 
-max.time <-
+## get rid of foreign vessels with max time less than 31 days ago --------------
+VID.use <-
   trail |>
   st_drop_geometry() |>
   group_by(vid, foreign) |>
-  summarise(time = max(time),
-            .groups = "drop") |>
-  ungroup() |>
-  arrange(time) |>
-  filter(!foreign | time >= ymd("2024-11-01"))
-# get rid of vessels with max time less than 30 days ago
-VID.use <- max.time$vid
+  reframe(time = max(time)) |>
+  # why the or?
+  filter(!foreign | time >= now() - days(31)) |>
+  pull(vid)
 trail <-
   trail |>
   filter(vid %in% VID.use)
 
-trail <-
-  trail |>
-  filter(time >= ymd_hms("2024-12-01 00:00:00"))
+# Save --------------------------------------------------------------------------
+## stk
 trail |> write_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/flotinnosigrandi.rds")
-
-# create a list for selection
+## shiny vessel choice
 tmp <-
   trail %>%
   st_drop_geometry() %>%
