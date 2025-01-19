@@ -1,5 +1,4 @@
 Here we have 4 gitignored datafiles
-capelin_vessels.rds: a list used as a preliminary filter
 flotinnosigrandi.rds: the stk data
 harbours.rds: harbour shapefile, used for trip generation
 vessels.rds: the list of vessels the user can choose from
