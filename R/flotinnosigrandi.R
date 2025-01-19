@@ -1,6 +1,7 @@
 lubridate::now()
 library(ROracle) #, lib.loc = "/usr/local/lib/R/site/4.1/x86_64/library")
 library(tidyverse)
+library(arrow)
 library(here)
 library(lubridate)
 library(sf)
@@ -8,75 +9,33 @@ library(omar)
 con <- connect_mar()
 source("/home/haf/einarhj/ShinyApps/flotinnosigrandi/R/make_trips.R")
 
-# Get vessel list - run occationally -------------------------------------------
-if(FALSE) {
-  vessels <-
-    omar::vessels_vessels(con) |>
-    collect(n = Inf)
-  capelin <-
-    ln_catch(con) %>%
-    filter(date >= to_date("2018-07-01", "YYYY:MM:DD"),
-           sid %in% c(31)) %>%
-    group_by(vid) %>%
-    summarise(catch = sum(catch, na.rm = TRUE),
-              last.landing  = max(date, na.rm = TRUE),
-              .groups = "drop") %>%
-    arrange(desc(catch)) %>%
-    collect(n = Inf) %>%
-    filter(catch > 0) |>
-    left_join(vessels |> select(vid, vessel, uid, uno, cs2 = cs, imo, mmsi2 = mmsi)) |>
-    mutate(vessel = case_when(vid == 3743 ~ "LIBAS VL0001ØN",
-                              vid == 3744 ~ "Hardhaus VL0009AV",
-                              vid == 3745 ~ "Polar Ammassak GR-18-188",
-                              TRUE ~ vessel)) |>
-    left_join(mar:::stk_mid_vid(con) %>%
-                collect(n = Inf),
-              multiple = "all") |>
-    mutate(mid = case_when(vid == 3743 & is.na(mid) ~ 144307,
-                           vid == 3744 & is.na(mid) ~ 144325,
-                           vid == 3745 & is.na(mid) ~ 144224,
-                           TRUE ~ mid)) |>
-    mutate(mid = case_when(vid == 2982 & is.na(mid) ~ 101402,       # Vilhelm Thorsteinsson
-                           vid == 2983 & is.na(mid) ~ 141610,       # Börkur
-                           vid == 3000 & is.na(mid) ~ 104362,       # Álsey
-                           vid == 3015 & is.na(mid) ~ 103872,       # Svanur
-                           vid == 3016 & is.na(mid) ~ 101074,       # Suðurey
-                           vid == 2730 & is.na(mid) ~ 101119,       # Gullberg
-                           TRUE ~ mid)) |>
-    mutate(mid = case_when(vid == 3756 ~ 137182,
-                           vid == 3757 ~ 140458,
-                           vid == 3758 ~ 140470,
-                           vid == 3759 ~ 116404,
-                           vid == 3760 ~ 116404,
-                           vid == 3761 ~ 143357,
-                           vid == 3762 ~ 140479,
-                           vid == 3763 ~ 140455,
-                           vid == 3764 ~ 139624,
-                           vid == 3765 ~ 140489,
-                           vid == 3766 ~ 140412,
-                           vid == 3925 ~ 101715,
-                           vid == 3925 ~ 102622,
-                           vid == 4727 ~ 102622,
-                           TRUE ~ mid)) |>
-    arrange(vid) |>
-    add_row(vid = 2350, vessel = "Arni Friðriksson",  mid = 101109) |>
-    add_row(vid = 1131, vessel = "Bjarni Sæmundsson", mid = 101143) |>
-    add_row(vid = 2730, vessel = "Gullberg", mid = 101119) |>
-    add_row(vid = 3035, vessel = "Hoffell", mid = 101104) |>
-    add_row(vid = 3059, vessel = "Hákon", mid = 149520) |>
-    mutate(foreign = ifelse(vid %in% 3700:4999, TRUE, FALSE)) |>
-    arrange(foreign, vessel) |>
-    filter(vid != 2885)
-  capelin |> write_rds(here("data/capelin_vessels.rds"))
-}
+
 
 # Load data --------------------------------------------------------------------
 harbours <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/harbours.rds")
-capelin <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/capelin_vessels.rds")
 T1 <- (lubridate::today() - months(2)) |> as.character()
 
+
+vessels <-
+  read_parquet("/home/haf/einarhj/stasi/fishydata/data/landings/agf_stations.parquet") |>
+  filter(datel >= ymd("2020-07-01"),
+         gid_ln %in% c(9, 10)) |>
+  inner_join(read_parquet("/home/haf/einarhj/stasi/fishydata/data/landings/agf_catch.parquet") |>
+               filter(sid %in% c(30, 31, 34, 36))) |>
+  select(vid) |>
+  filter(!vid %in% c(1972, 2903)) |>
+  add_row(vid = c(1131, 2350)) |> # add bjarni and árni
+  distinct() |>
+  left_join(read_parquet("/home/haf/einarhj/stasi/fishydata/data/vessels/stk_vessel_match.parquet")) |>
+  left_join(read_parquet("/home/haf/einarhj/stasi/fishydata/data/vessels/vessels_iceland.parquet") |>
+              select(vid, vessel) |>
+              mutate(foreign = ifelse(vid %in% 3700:4999, TRUE, FALSE))) |>
+  select(mid, vid, vessel, foreign, d1, d2)
+
+
+
 mids <-
-  capelin %>%
+  vessels %>%
   select(mid) %>%
   drop_na() %>%
   filter(mid > 0) |>
@@ -115,9 +74,8 @@ trail <-
   filter(trip %in% c(0:3))
 trail <-
   trail %>%
-  left_join(capelin |>
-              select(vid, vessel, mid, foreign),
-            by = join_by(mid))
+  left_join(vessels,
+            by = join_by(mid, between(time, d1, d2)))
 
 ## fix trip number (should be done upstream) -----------------------------------
 trip.fix <-

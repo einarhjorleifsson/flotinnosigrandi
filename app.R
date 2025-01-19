@@ -6,8 +6,8 @@ library(shiny)
 library(shinydashboard)
 library(mapdeck)
 
-vessels <- read_rds(here("data/vessels.rds"))
-track <- read_sf("track.gpkg")
+vessels <- read_rds("/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/vessels.rds")
+track <- read_sf("/home/haf/einarhj/ShinyApps/flotinnosigrandi/track.gpkg")
 ui <-
   dashboardPage(
 
@@ -42,7 +42,7 @@ server <- function(input, output, session) {
   trail.live <-
     reactiveFileReader(intervalMillis = 100,
                        session = session,
-                       filePath = here("data/flotinnosigrandi.rds"),
+                       filePath = "/home/haf/einarhj/ShinyApps/flotinnosigrandi/data/flotinnosigrandi.rds",
                        readFunc = read_rds)
 
 
