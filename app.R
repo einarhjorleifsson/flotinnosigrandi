@@ -7,7 +7,7 @@ library(shinydashboard)
 library(mapdeck)
 
 vessels <- read_rds(here("data/vessels.rds"))
-
+track <- read_sf("track.gpkg")
 ui <-
   dashboardPage(
 
@@ -53,7 +53,11 @@ server <- function(input, output, session) {
   })
 
   output$map <- mapdeck::renderMapdeck({
-    mapdeck::mapdeck(location = c(-20, 65), zoom = 4)
+    mapdeck::mapdeck(location = c(-20, 65), zoom = 4) |>
+      mapdeck::add_path(data = track,
+                        #highlight_colour = "#FF0000FF",
+                        #stroke_colour = "#00ee00FF",
+                        layer_id = "track")
   })
 
   observeEvent(
